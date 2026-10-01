@@ -303,6 +303,56 @@ table.uren .r { text-align: right; }
 table.uren td small { display: block; font-size: 12px; color: var(--muted); }
 table.uren td.wrap { white-space: normal; }
 
+/* ===== Intakeformulier ===== */
+.sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+.req { color: #9B2C1F; }
+.steps { list-style: none; margin: 4px 0 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.steps li { height: 6px; border-radius: 3px; background: rgba(255,255,255,.25); }
+.steps li.done { background: rgba(255,255,255,.75); }
+.steps li.now { background: #fff; }
+.form input[type="text"], .form input[type="email"], .form input[type="tel"], .form input[type="date"] {
+  width: 100%; min-height: 48px; border: 1px solid #CBD3CE; border-radius: 12px; padding: 10px 12px;
+  font: 400 16px var(--font); color: var(--ink); background: #fff;
+}
+.grid-aanhef { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 12px; }
+.form fieldset { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.form legend { padding: 0; margin-bottom: 8px; font-size: 14px; font-weight: 600; color: var(--label); }
+.chk-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.form label.chip-check { flex-direction: row; gap: 0; position: relative; }
+.chip-check input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.chip-check span {
+  display: inline-flex; align-items: center; min-height: 44px; padding: 0 14px; border-radius: 999px;
+  border: 1px solid #CBD3CE; background: #fff; color: #2C3A33; font-size: 15px; font-weight: 600; cursor: pointer;
+}
+.chip-check input:checked + span { background: var(--accent); border-color: var(--accent); color: #fff; }
+.chip-check input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+.rooster-rows { display: flex; flex-direction: column; gap: 8px; }
+.rooster-row { display: grid; grid-template-columns: 76px minmax(0,1fr) minmax(0,1fr) 44px; gap: 8px; align-items: center; }
+.rooster-row label { gap: 0 !important; }
+.icon-btn { width: 44px; height: 44px; border: 0; border-radius: 22px; background: var(--chip); color: var(--label); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.icon-btn svg { width: 18px; height: 18px; }
+.form .btn-sm { align-self: flex-start; }
+.nav-btns { margin-top: 2px; }
+.linkbtn { border: 0; background: none; padding: 0; color: var(--accent-dark); font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer; }
+#printArea { display: none; }
+
+@media print {
+  body { background: #fff; }
+  .app { display: none !important; }
+  .toast { display: none !important; }
+  #printArea { display: block; font-family: var(--font); color: #000; font-size: 11pt; padding: 0 8mm; }
+  #printArea h1 { font-family: var(--serif); font-size: 18pt; margin: 0 0 6mm; }
+  #printArea h2 { font-size: 12pt; margin: 6mm 0 2mm; border-bottom: 1px solid #000; padding-bottom: 1mm; }
+  #printArea table { width: 100%; border-collapse: collapse; }
+  #printArea th { text-align: left; width: 38%; font-weight: 600; padding: 1.5mm 2mm 1.5mm 0; vertical-align: top; }
+  #printArea td { padding: 1.5mm 0; vertical-align: top; white-space: pre-line; }
+  #printArea tr { break-inside: avoid; }
+  #printArea .sign { display: grid; grid-template-columns: 1fr 1fr; gap: 12mm; margin-top: 14mm; break-inside: avoid; }
+  #printArea .sign span { display: block; border-bottom: 1px solid #000; height: 18mm; }
+}
+.rooster-row { grid-template-columns: 64px minmax(0,1fr) minmax(0,1fr) 44px; gap: 6px; }
+.rooster-row select, .rooster-row input[type="time"] { padding: 8px 6px !important; font-size: 15px !important; }
+
   </style>
 </head>
 <body>
@@ -527,7 +577,8 @@ window.CLIENTEN = [
 (function () {
   "use strict";
 
-  var clients = window.CLIENTEN || [];
+  var baseClients = window.CLIENTEN || [];
+  var clients = baseClients.slice();
   var ORG = window.ORGANISATIE || { coordinator: {}, kmVergoeding: 0 };
   var view = document.getElementById("view");
   var tabs = document.querySelectorAll(".tabbar a");
@@ -552,11 +603,14 @@ window.CLIENTEN = [
 
   // ---------- Opslag op dit apparaat ----------
   var KEY = "clientbezoek.v1";
-  var store = { diensten: {}, berichten: [] };
+  var store = { diensten: {}, berichten: [], clienten: [], intakeConcept: null };
   try {
     var raw = localStorage.getItem(KEY);
-    if (raw) { var parsed = JSON.parse(raw); store.diensten = parsed.diensten || {}; store.berichten = parsed.berichten || []; }
+    if (raw) { var parsed = JSON.parse(raw); store.diensten = parsed.diensten || {}; store.berichten = parsed.berichten || []; store.clienten = parsed.clienten || []; store.intakeConcept = parsed.intakeConcept || null; }
   } catch (e) { /* geen opslag beschikbaar: app werkt, maar onthoudt niets */ }
+  // Cliënten uit DEEL 1 plus cliënten die via het intakeformulier zijn toegevoegd
+  function rebuildClients() { clients = baseClients.concat(store.clienten); }
+  rebuildClients();
   function save() {
     try { localStorage.setItem(KEY, JSON.stringify(store)); return true; }
     catch (e) { toast("Opslaan mislukt: het geheugen van de app is vol. Verwijder oude foto’s."); return false; }
@@ -635,6 +689,7 @@ window.CLIENTEN = [
     for (var d = new Date(from); d <= to; d = addDays(d, 1)) {
       var dn = isoDay(d), ds = ymd(d);
       clients.forEach(function (c) {
+        if (c.startdatum && ds < c.startdatum) return;
         (c.rooster || []).forEach(function (r) {
           if (DAGNR[r.dag] === dn) out.push({ id: dienstId(c.id, ds, r.van), client: c, datum: ds, van: r.van, tot: r.tot, tarief: c.tarief || 0 });
         });
@@ -866,6 +921,7 @@ window.CLIENTEN = [
           '<div class="how">' + esc(c.contact.relatie) + ' · ' + esc(c.contact.telefoon) + '</div></div>' +
           '<a class="call-btn" href="' + telLink(c.contact.telefoon) + '" aria-label="Bel ' + esc(c.contact.naam) + '">' + ICON.phone + '</a></div>' +
         '</section>' +
+        (c.eigen ? '<a class="btn btn-secondary" href="#/intake/' + esc(c.id) + '">Intakegegevens bewerken</a>' : '') +
         '<div class="footnote">Laatst bijgewerkt: ' + esc(c.bijgewerkt.datum) + ' door ' + esc(c.bijgewerkt.door) + '</div>' +
       '</div>';
     var all = document.getElementById("allReports");
@@ -1191,9 +1247,307 @@ window.CLIENTEN = [
     });
   }
 
-  // ---------- Nog uit te werken ----------
-  function renderNieuw() {
-    view.innerHTML = '<div class="placeholder"><h1>Nieuwe cliënt</h1><p>Hier komt het intakeformulier om een nieuwe cliënt toe te voegen. Voor nu voeg je cliënten toe in js/data.js.</p><a href="#/clienten">Terug naar het overzicht</a></div>';
+  // ---------- Scherm: intakeformulier (nieuwe cliënt) ----------
+  var ZORGSOORTEN = ["Begeleiding", "Gezelschap", "Hulp in huis", "Respijtzorg", "Begeleid vervoer", "Ondersteuning bij dementie", "Gezinshulp"];
+  var FINANCIERING = ["Particulier", "PGB · Wmo", "PGB · Wlz", "Anders"];
+  var STAPPEN = ["Persoon", "Contact", "Zorgvraag", "Over de cliënt", "Afronden"];
+
+  function isoToNL(s) { var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || ""); return m ? m[3] + "-" + m[2] + "-" + m[1] : (s || ""); }
+  function nlToIso(s) { var m = /^(\d{2})-(\d{2})-(\d{4})$/.exec(s || ""); return m ? m[3] + "-" + m[2] + "-" + m[1] : ""; }
+
+  function emptyIntake() {
+    return {
+      aanhef: "Mevr.", voornaam: "", achternaam: "", roepnaam: "", geboortedatum: "",
+      adres: "", postcode: "", woonplaats: "", telefoon: "", email: "", huisarts: "",
+      contactNaam: "", contactRelatie: "", contactTelefoon: "", contactEmail: "",
+      casemanager: "", wijkteam: "",
+      zorg: [], financiering: "Particulier", financier: "", indicatieTot: "", tarief: "22.50",
+      startdatum: today(), zorgverlener: "", rooster: [{ dag: "di", van: "10:00", tot: "12:00" }],
+      hulpvraag: "", over: "", fijn: "", liever: "", communicatie: "", letOp: "", aandacht: "",
+      tPrivacy: false, tVerslag: true, tFoto: false, tSocial: false, tKlacht: false, tOvereenkomst: false,
+      intakeDoor: ORG.medewerker || "", intakeDatum: today()
+    };
+  }
+  function clientToIntake(c) {
+    var d = emptyIntake();
+    Object.keys(d).forEach(function (k) { if (c.intake && c.intake[k] !== undefined) d[k] = c.intake[k]; });
+    return d;
+  }
+  function slug(s) {
+    return (s || "client").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 24) || "client";
+  }
+
+  function intakeToClient(d, existing) {
+    var id = existing ? existing.id : slug(d.voornaam + "-" + d.achternaam) + "-" + Date.now().toString(36).slice(-4);
+    var tarief = parseFloat(String(d.tarief).replace(",", ".")) || 0;
+    var urenTxt = d.rooster.length ? num(uren(d.rooster[0].van, d.rooster[0].tot), 1).replace(",0", "") + " uur" : "—";
+    var nr = existing ? existing.clientnummer : "C-" + String(clients.length + 1).padStart(4, "0");
+    return {
+      id: id, eigen: true, intake: JSON.parse(JSON.stringify(d)),
+      aanhef: d.aanhef, voornaam: d.voornaam.trim(), achternaam: d.achternaam.trim(),
+      roepnaam: (d.roepnaam || d.voornaam).trim() || d.achternaam,
+      adres: d.adres.trim(), postcode: d.postcode.trim().toUpperCase(), woonplaats: d.woonplaats.trim(),
+      telefoon: d.telefoon.trim(), geboortedatum: isoToNL(d.geboortedatum) || "—",
+      huisarts: d.huisarts.trim() || "—", clientnummer: nr,
+      zorg: d.zorg.slice(),
+      financiering: d.financiering + (d.financier ? " · " + d.financier : ""),
+      frequentie: d.rooster.length + "× per week", urenPerBezoek: urenTxt,
+      zorgverlener: d.zorgverlener.trim() || "[nog in te plannen]",
+      indicatieTot: isoToNL(d.indicatieTot) || "n.v.t.",
+      rooster: d.rooster.filter(function (r) { return r.dag && r.van && r.tot; }),
+      tarief: tarief, startdatum: d.startdatum,
+      letOp: d.letOp.trim(),
+      over: (d.over.trim() || d.hulpvraag.trim() || "—"),
+      fijn: d.fijn.trim() || "—", liever: d.liever.trim() || "—", communicatie: d.communicatie.trim() || "—",
+      contact: { naam: d.contactNaam.trim() || "—", relatie: d.contactRelatie.trim() || "Contactpersoon", telefoon: d.contactTelefoon.trim() || "—" },
+      bijgewerkt: { datum: isoToNL(today()), door: d.intakeDoor || ORG.medewerker || "" }
+    };
+  }
+
+  // formulier-onderdelen
+  function fIn(key, label, d, opt) {
+    opt = opt || {};
+    return '<label><span>' + esc(label) + (opt.req ? ' <span class="req" aria-hidden="true">*</span>' : '') + (opt.optional ? ' <span class="opt">(optioneel)</span>' : '') + '</span>' +
+      '<input data-f="' + key + '" type="' + (opt.type || "text") + '" value="' + esc(d[key]) + '"' +
+      (opt.req ? ' required' : '') + (opt.ac ? ' autocomplete="' + opt.ac + '"' : '') + (opt.im ? ' inputmode="' + opt.im + '"' : '') +
+      (opt.ph ? ' placeholder="' + esc(opt.ph) + '"' : '') + (opt.attrs || '') + '></label>';
+  }
+  function fArea(key, label, d, ph, rows) {
+    return '<label>' + esc(label) + '<textarea data-f="' + key + '" rows="' + (rows || 3) + '" placeholder="' + esc(ph || "") + '">' + esc(d[key]) + '</textarea></label>';
+  }
+  function fSel(key, label, d, options) {
+    return '<label>' + esc(label) + '<select data-f="' + key + '">' + options.map(function (o) {
+      return '<option' + (o === d[key] ? ' selected' : '') + '>' + esc(o) + '</option>';
+    }).join("") + '</select></label>';
+  }
+  function fChk(key, label, d, req) {
+    return '<label class="check"><input type="checkbox" data-f="' + key + '"' + (d[key] ? ' checked' : '') + '><span>' + label + (req ? ' <span class="req" aria-hidden="true">*</span>' : '') + '</span></label>';
+  }
+
+  function intakeStep(step, d) {
+    if (step === 0) return '<section class="card form"><h2>Persoonsgegevens</h2>' +
+      '<div class="grid-aanhef">' + fSel("aanhef", "Aanhef", d, ["Mevr.", "Dhr.", "Fam.", "—"]) + fIn("voornaam", "Voornaam", d, { req: true, ac: "off" }) + '</div>' +
+      fIn("achternaam", "Achternaam", d, { req: true, ac: "off", ph: "bijv. de Vries-Bakker" }) +
+      fIn("roepnaam", "Roepnaam / hoe wil de cliënt aangesproken worden?", d, { optional: true }) +
+      fIn("geboortedatum", "Geboortedatum", d, { type: "date" }) +
+      fIn("adres", "Straat en huisnummer", d, { req: true }) +
+      '<div class="grid2">' + fIn("postcode", "Postcode", d, { req: true, ph: "2801 AB" }) + fIn("woonplaats", "Woonplaats", d, { req: true }) + '</div>' +
+      fIn("telefoon", "Telefoon", d, { type: "tel", im: "tel" }) +
+      fIn("email", "E-mail", d, { type: "email", optional: true }) +
+      fIn("huisarts", "Huisarts", d, { optional: true, ph: "naam en praktijk" }) +
+    '</section>';
+
+    if (step === 1) return '<section class="card form"><h2>Eerste contactpersoon / mantelzorger</h2>' +
+      fIn("contactNaam", "Naam", d) +
+      fIn("contactRelatie", "Relatie tot de cliënt", d, { ph: "bijv. dochter, mantelzorger" }) +
+      '<div class="grid2">' + fIn("contactTelefoon", "Telefoon", d, { type: "tel", im: "tel" }) + fIn("contactEmail", "E-mail", d, { type: "email" }) + '</div>' +
+      '</section><section class="card form"><h2>Andere betrokkenen</h2>' +
+      fIn("casemanager", "Casemanager dementie", d, { optional: true, ph: "naam en telefoon" }) +
+      fIn("wijkteam", "Wijkteam / Wmo-consulent", d, { optional: true, ph: "naam en telefoon" }) +
+    '</section>';
+
+    if (step === 2) return '<section class="card form"><h2>Hulpvraag</h2>' +
+      fArea("hulpvraag", "Waar heeft de cliënt of de familie hulp bij nodig?", d, "Bijv. dochter werkt overdag; moeder is veel alleen en vergeet te eten. Zoekt gezelschap en structuur.", 4) +
+      '<fieldset><legend>Soort zorg <span class="req" aria-hidden="true">*</span></legend><div class="chk-grid">' +
+        ZORGSOORTEN.map(function (z) { return '<label class="chip-check"><input type="checkbox" data-zorg="' + esc(z) + '"' + (d.zorg.indexOf(z) > -1 ? ' checked' : '') + '><span>' + esc(z) + '</span></label>'; }).join("") +
+      '</div></fieldset>' +
+      '</section><section class="card form"><h2>Financiering</h2>' +
+      '<div class="grid2">' + fSel("financiering", "Financiering", d, FINANCIERING) + fIn("tarief", "Uurtarief (€)", d, { im: "decimal", ph: "22,50" }) + '</div>' +
+      fIn("financier", "Gemeente of zorgkantoor", d, { optional: true, ph: "bijv. gemeente Gouda" }) +
+      fIn("indicatieTot", "Indicatie of budget geldig t/m", d, { type: "date", optional: true }) +
+      '</section><section class="card form"><h2>Vaste bezoekmomenten</h2>' +
+      '<div id="roosterRows" class="rooster-rows">' + d.rooster.map(function (r, i) {
+        return '<div class="rooster-row">' +
+          '<label><span class="sr">Dag</span><select data-r="dag" data-i="' + i + '" aria-label="Dag">' + DAGNAAM.slice(1).map(function (dn) { return '<option' + (dn === r.dag ? ' selected' : '') + '>' + dn + '</option>'; }).join("") + '</select></label>' +
+          '<label><span class="sr">Van</span><input type="time" data-r="van" data-i="' + i + '" value="' + esc(r.van) + '" aria-label="Van"></label>' +
+          '<label><span class="sr">Tot</span><input type="time" data-r="tot" data-i="' + i + '" value="' + esc(r.tot) + '" aria-label="Tot"></label>' +
+          '<button type="button" class="icon-btn" data-del="' + i + '" aria-label="Verwijder moment">' + ICON.x + '</button></div>';
+      }).join("") + '</div>' +
+      '<button type="button" class="btn btn-secondary btn-sm" id="addRow">' + ICON.plus + 'Moment toevoegen</button>' +
+      '<div class="grid2">' + fIn("startdatum", "Startdatum", d, { type: "date" }) + fIn("zorgverlener", "Vaste zorgverlener", d, { ph: "naam" }) + '</div>' +
+    '</section>';
+
+    if (step === 3) return '<section class="card form"><h2>Over de cliënt</h2>' +
+      fArea("over", "Korte achtergrond", d, "Woonsituatie, familie, vroeger beroep, wat belangrijk is in het leven.", 4) +
+      fArea("fijn", "Vindt fijn", d, "Bijv. wandelen, oude foto’s kijken, koffie met een koekje.", 2) +
+      fArea("liever", "Liever niet", d, "Bijv. haast, harde tv, onverwachte wisselingen.", 2) +
+      fArea("communicatie", "Communicatie", d, "Bijv. slechthorend links, korte zinnen, één vraag tegelijk.", 2) +
+      '</section><section class="card form"><h2>Praktisch</h2>' +
+      fArea("letOp", "Let op bij binnenkomst", d, "Sleutel/sleutelkluis, huisdieren, parkeren, bel werkt niet …", 2) +
+      fArea("aandacht", "Aandachtspunten voor de begeleiding", d, "Alleen wat nodig is voor de begeleiding, bijv. valgevaar of beginnende vergeetachtigheid. Geen medisch dossier.", 3) +
+      '<p class="hint">Niet-medische zorg: noteer alleen wat de zorgverlener moet weten. Medische zaken horen bij huisarts of wijkverpleging.</p>' +
+    '</section>';
+
+    // stap 4: afronden
+    var c = intakeToClient(d, null);
+    return '<section class="card form"><h2>Afspraken en toestemming</h2>' +
+        fChk("tPrivacy", "Privacyreglement besproken; cliënt geeft toestemming om deze gegevens vast te leggen", d, true) +
+        fChk("tVerslag", "Verslagen mogen gedeeld worden met de contactpersoon", d) +
+        fChk("tFoto", "Foto’s maken tijdens activiteiten mag", d) +
+        fChk("tSocial", "Foto’s mogen (zonder naam) op social media", d) +
+        fChk("tKlacht", "Klachtenregeling en geschillencommissie uitgelegd", d) +
+        fChk("tOvereenkomst", "Zorgovereenkomst / opdrachtbevestiging getekend", d) +
+        '<div class="grid2">' + fIn("intakeDoor", "Intake gedaan door", d) + fIn("intakeDatum", "Datum intake", d, { type: "date" }) + '</div>' +
+      '</section>' +
+      '<section class="card"><h2>Samenvatting</h2><div class="kv">' +
+        kv("Naam", [c.aanhef !== "—" ? c.aanhef : "", c.voornaam, c.achternaam].filter(Boolean).join(" ")) +
+        kv("Adres", c.adres + ", " + c.postcode + " " + c.woonplaats) +
+        kv("Zorg", c.zorg.join(", ") || "—") +
+        kv("Financiering", c.financiering) +
+        kv("Vaste momenten", roosterTekst(c)) +
+        kv("Start", isoToNL(d.startdatum) || "—") +
+        kv("Contactpersoon", c.contact.naam + (d.contactRelatie ? " (" + d.contactRelatie + ")" : "")) +
+      '</div></section>' +
+      '<button class="btn btn-ghost" type="button" id="printBtn">' + ICON.download + 'Afdrukken of opslaan als PDF</button>';
+  }
+
+  function collectIntake(d) {
+    view.querySelectorAll("[data-f]").forEach(function (el) {
+      d[el.dataset.f] = el.type === "checkbox" ? el.checked : el.value;
+    });
+    var z = view.querySelectorAll("[data-zorg]");
+    if (z.length) { d.zorg = []; z.forEach(function (el) { if (el.checked) d.zorg.push(el.dataset.zorg); }); }
+    view.querySelectorAll("[data-r]").forEach(function (el) { var r = d.rooster[+el.dataset.i]; if (r) r[el.dataset.r] = el.value; });
+  }
+  function validateIntake(step, d) {
+    if (step === 0) {
+      if (!d.voornaam.trim() && d.aanhef !== "Fam.") return ["voornaam", "Vul de voornaam in."];
+      if (!d.achternaam.trim()) return ["achternaam", "Vul de achternaam in."];
+      if (!d.adres.trim()) return ["adres", "Vul straat en huisnummer in."];
+      if (!/^\d{4}\s?[A-Za-z]{2}$/.test(d.postcode.trim())) return ["postcode", "Vul een geldige postcode in, bijvoorbeeld 2801 AB."];
+      if (!d.woonplaats.trim()) return ["woonplaats", "Vul de woonplaats in."];
+    }
+    if (step === 2) {
+      if (!d.zorg.length) return [null, "Kies minstens één soort zorg."];
+      for (var i = 0; i < d.rooster.length; i++) {
+        if (mins(d.rooster[i].tot) <= mins(d.rooster[i].van)) return [null, "Bij een bezoekmoment is ‘tot’ niet later dan ‘van’."];
+      }
+    }
+    if (step === 4 && !d.tPrivacy) return ["tPrivacy", "Zonder toestemming voor het vastleggen van gegevens kan de cliënt niet worden opgeslagen."];
+    return null;
+  }
+
+  function renderIntake(editId) {
+    var existing = editId ? findClient(editId) : null;
+    if (editId && (!existing || !existing.eigen)) { location.hash = "#/clienten"; return; }
+    var key = editId || "nieuw";
+    if (!state.intake || state.intake.key !== key) {
+      var draft = (!editId && store.intakeConcept) ? store.intakeConcept : null;
+      state.intake = { key: key, step: 0, d: existing ? clientToIntake(existing) : (draft || emptyIntake()), restored: !!draft };
+    }
+    var it = state.intake, d = it.d, step = it.step;
+    var title = existing ? "Intake bewerken" : "Nieuwe cliënt";
+
+    view.innerHTML =
+      '<header class="hero hero-sm">' +
+        '<div class="hero-top"><a class="round-btn" href="' + (existing ? '#/client/' + esc(existing.id) : '#/clienten') + '" aria-label="Terug" id="intakeBack">' + ICON.back + '</a>' +
+        '<div class="sub">Stap ' + (step + 1) + ' van ' + STAPPEN.length + ' · ' + esc(STAPPEN[step]) + '</div><span style="width:44px"></span></div>' +
+        '<h1>' + esc(title) + '</h1>' +
+        '<ol class="steps" aria-label="Voortgang">' + STAPPEN.map(function (s, i) {
+          return '<li class="' + (i < step ? 'done' : i === step ? 'now' : '') + '"' + (i === step ? ' aria-current="step"' : '') + '><span class="sr">' + esc(s) + '</span></li>';
+        }).join("") + '</ol>' +
+      '</header>' +
+      '<form class="stack" id="intakeForm" novalidate>' +
+        (it.restored && step === 0 ? '<div class="note-ok">' + ICON.info + '<span>Je eerdere, niet-afgemaakte intake is teruggezet. <button type="button" class="linkbtn" id="resetDraft">Opnieuw beginnen</button></span></div>' : '') +
+        intakeStep(step, d) +
+        '<p class="error" id="iErr" role="alert"></p>' +
+        '<div class="grid2 nav-btns">' +
+          (step > 0 ? '<button class="btn btn-secondary" type="button" id="prevStep">Vorige</button>' : '<span></span>') +
+          (step < STAPPEN.length - 1 ? '<button class="btn btn-primary" type="submit">Volgende</button>' : '<button class="btn btn-primary" type="submit">' + ICON.check + (existing ? 'Opslaan' : 'Cliënt toevoegen') + '</button>') +
+        '</div>' +
+        (existing && step === STAPPEN.length - 1 ? '<button class="btn btn-ghost danger" type="button" id="delClient">Cliënt verwijderen</button>' : '') +
+        '<p class="hint center">Velden met <span class="req">*</span> zijn verplicht. Alles wordt alleen op dit toestel bewaard.</p>' +
+      '</form>';
+
+    function keepDraft() { if (!existing) { store.intakeConcept = d; save(); } }
+    function go(n) { it.step = n; it.restored = false; renderIntake(editId); view.scrollTop = 0; }
+
+    var form = document.getElementById("intakeForm");
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      collectIntake(d);
+      var bad = validateIntake(step, d);
+      if (bad) {
+        document.getElementById("iErr").textContent = bad[1];
+        var el = bad[0] && view.querySelector('[data-f="' + bad[0] + '"]');
+        if (el) el.focus();
+        return;
+      }
+      if (step < STAPPEN.length - 1) { keepDraft(); go(step + 1); return; }
+      var c = intakeToClient(d, existing);
+      if (existing) {
+        for (var i = 0; i < store.clienten.length; i++) if (store.clienten[i].id === existing.id) store.clienten[i] = c;
+      } else {
+        store.clienten.push(c);
+        store.intakeConcept = null;
+      }
+      if (!save()) return;
+      rebuildClients();
+      state.intake = null;
+      toast(existing ? "Gegevens opgeslagen." : displayName(c) + " is toegevoegd.");
+      location.hash = "#/client/" + c.id;
+    });
+    var prev = document.getElementById("prevStep");
+    if (prev) prev.addEventListener("click", function () { collectIntake(d); keepDraft(); go(step - 1); });
+    document.getElementById("intakeBack").addEventListener("click", function () { collectIntake(d); keepDraft(); state.intake = null; });
+    var reset = document.getElementById("resetDraft");
+    if (reset) reset.addEventListener("click", function () { store.intakeConcept = null; save(); state.intake = null; renderIntake(null); });
+    var addRow = document.getElementById("addRow");
+    if (addRow) addRow.addEventListener("click", function () {
+      collectIntake(d);
+      var last = d.rooster[d.rooster.length - 1] || { dag: "ma", van: "10:00", tot: "12:00" };
+      d.rooster.push({ dag: last.dag, van: last.van, tot: last.tot });
+      renderIntake(editId);
+    });
+    view.querySelectorAll("[data-del]").forEach(function (b) {
+      b.addEventListener("click", function () { collectIntake(d); d.rooster.splice(+b.dataset.del, 1); renderIntake(editId); });
+    });
+    var pr = document.getElementById("printBtn");
+    if (pr) pr.addEventListener("click", function () { collectIntake(d); printIntake(d); });
+    var del = document.getElementById("delClient");
+    if (del) del.addEventListener("click", function () {
+      if (del.dataset.sure !== "1") { del.dataset.sure = "1"; del.textContent = "Weet je het zeker? Tik nogmaals om te verwijderen"; return; }
+      store.clienten = store.clienten.filter(function (x) { return x.id !== existing.id; });
+      save(); rebuildClients(); state.intake = null;
+      if (state.lastClient === existing.id) state.lastClient = clients.length ? clients[0].id : null;
+      toast("Cliënt verwijderd.");
+      location.hash = "#/clienten";
+    });
+  }
+
+  // Afdrukbaar intakeverslag (ook als PDF op te slaan via de printfunctie van de telefoon/computer)
+  function printIntake(d) {
+    var c = intakeToClient(d, null);
+    var ja = function (b) { return b ? "Ja" : "Nee"; };
+    var rows = [
+      ["Persoonsgegevens", [
+        ["Naam", [d.aanhef !== "—" ? d.aanhef : "", d.voornaam, d.achternaam].filter(Boolean).join(" ")],
+        ["Roepnaam", d.roepnaam], ["Geboortedatum", isoToNL(d.geboortedatum)],
+        ["Adres", d.adres + ", " + d.postcode + " " + d.woonplaats], ["Telefoon", d.telefoon], ["E-mail", d.email], ["Huisarts", d.huisarts]]],
+      ["Contactpersonen", [
+        ["Eerste contactpersoon", [d.contactNaam, d.contactRelatie].filter(Boolean).join(" – ")],
+        ["Telefoon / e-mail", [d.contactTelefoon, d.contactEmail].filter(Boolean).join(" / ")],
+        ["Casemanager dementie", d.casemanager], ["Wijkteam / Wmo", d.wijkteam]]],
+      ["Zorgvraag", [
+        ["Hulpvraag", d.hulpvraag], ["Soort zorg", d.zorg.join(", ")], ["Financiering", c.financiering],
+        ["Indicatie t/m", isoToNL(d.indicatieTot)], ["Uurtarief", d.tarief ? "€ " + d.tarief : ""],
+        ["Vaste momenten", roosterTekst(c)], ["Startdatum", isoToNL(d.startdatum)], ["Vaste zorgverlener", d.zorgverlener]]],
+      ["Over de cliënt", [
+        ["Achtergrond", d.over], ["Vindt fijn", d.fijn], ["Liever niet", d.liever], ["Communicatie", d.communicatie],
+        ["Let op bij binnenkomst", d.letOp], ["Aandachtspunten", d.aandacht]]],
+      ["Afspraken en toestemming", [
+        ["Toestemming vastleggen gegevens", ja(d.tPrivacy)], ["Verslagen delen met contactpersoon", ja(d.tVerslag)],
+        ["Foto’s tijdens activiteiten", ja(d.tFoto)], ["Foto’s op social media", ja(d.tSocial)],
+        ["Klachtenregeling uitgelegd", ja(d.tKlacht)], ["Zorgovereenkomst getekend", ja(d.tOvereenkomst)],
+        ["Intake door", d.intakeDoor], ["Datum intake", isoToNL(d.intakeDatum)]]]
+    ];
+    var box = document.getElementById("printArea") || document.body.appendChild(Object.assign(document.createElement("div"), { id: "printArea" }));
+    box.innerHTML = '<h1>Intakeformulier – ' + esc(ORG.naam || "") + '</h1>' +
+      rows.map(function (sec) {
+        return '<h2>' + esc(sec[0]) + '</h2><table>' + sec[1].map(function (r) { return '<tr><th>' + esc(r[0]) + '</th><td>' + esc(r[1] || "") + '</td></tr>'; }).join("") + '</table>';
+      }).join("") +
+      '<div class="sign"><div>Handtekening cliënt / vertegenwoordiger<span></span></div><div>Handtekening ' + esc(ORG.naam || "zorgbureau") + '<span></span></div></div>';
+    window.print();
   }
 
   // ---------- Navigatie ----------
@@ -1211,7 +1565,8 @@ window.CLIENTEN = [
     else if (page === "verslag") renderVerslag();
     else if (page === "uren") renderUren();
     else if (page === "berichten") { renderBerichten(); active = ""; }
-    else if (page === "nieuw") { renderNieuw(); active = "clienten"; }
+    else if (page === "nieuw") { renderIntake(null); active = "clienten"; }
+    else if (page === "intake") { renderIntake(decodeURIComponent(parts[1] || "")); active = "clienten"; }
     else { active = "clienten"; renderOverview(); }
 
     tabs.forEach(function (t) {
